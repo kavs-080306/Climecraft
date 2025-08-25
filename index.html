@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI-Powered Weather Suggestions</title>
+  <style>
+    body {
+      background: #f6f7fb;
+      color: #333;
+      font-family: "Segoe UI", Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .main-container {
+      max-width: 700px;
+      margin: 32px auto;
+      background: #fff;
+      padding: 32px 24px;
+      border-radius: 18px;
+      box-shadow: 0 5px 18px rgba(0, 0, 0, 0.08);
+      text-align: center;
+      width: 90vw;
+      box-sizing: border-box;
+    }
+    header h1 {
+      margin-top: 0;
+      color: #2d7dfa;
+    }
+    header p {
+      color: #666;
+      font-size: 1rem;
+      margin-bottom: 28px;
+    }
+    button#getLocationBtn {
+      display: block;
+      margin: 0 auto 32px auto;
+      padding: 14px 24px;
+      font-size: 1.04rem;
+      background: #2d7dfa;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.22s;
+      min-width: 180px;
+    }
+    button#getLocationBtn:hover {
+      background: #1967d2;
+    }
+    #locationDisplay {
+      font-size: 1.05rem;
+      color: #1967d2;
+      margin: 12px 0;
+    }
+    #tempDisplay {
+      font-size: 1.05rem;
+      color: #1967d2;
+      margin: 6px 0 24px 0;
+    }
+    /* Grid container with 2 columns */
+    section#suggestions {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    /* Suggestion boxes */
+    .suggestion-card {
+      background: #f0f6ff;
+      border-radius: 12px;
+      padding: 18px 14px;
+      box-shadow: 0 2px 9px rgba(44, 125, 250, 0.04);
+      min-height: 120px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      width: auto;
+      box-sizing: border-box;
+    }
+    .suggestion-card h2 {
+      margin: 0;
+      font-size: 1.14rem;
+      color: #1d263d;
+      font-weight: bold;
+    }
+    .suggestion-card .result {
+      font-size: 1.03rem;
+      color: #333;
+      margin-top: 8px;
+      min-height: 40px;
+    }
+    #errorMsg {
+      margin-top: 20px;
+      color: #b00020;
+      font-weight: 600;
+    }
+    footer {
+      margin-top: 36px;
+      text-align: center;
+      color: #bbb;
+      font-size: 0.92rem;
+    }
+    /* Responsive: stack on narrow screens */
+    @media (max-width: 650px) {
+      section#suggestions {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="main-container">
+    <header>
+      <h1>What’s the Vibe Today?</h1>
+      <p>Get personalized suggestions powered by AI based on your weather</p>
+    </header>
+    <button id="getLocationBtn">Get My Suggestions</button>
+    <p id="locationDisplay">Location: ---</p>
+    <p id="tempDisplay">Temperature: ---°C</p>
+    <section id="suggestions">
+      <div class="suggestion-card" id="food">
+        <h2>Food to Eat</h2>
+        <p class="result">---</p>
+      </div>
+      <div class="suggestion-card" id="dress">
+        <h2>Dress to Wear</h2>
+        <p class="result">---</p>
+      </div>
+      <div class="suggestion-card" id="music">
+        <h2>Music to Listen</h2>
+        <p class="result">---</p>
+      </div>
+      <div class="suggestion-card" id="quote">
+        <h2>Quote for the Day</h2>
+        <p class="result">---</p>
+      </div>
+    </section>
+    <p id="errorMsg"></p>
+    <footer>
+      <small>&copy; 2025 YourWebsiteName</small>
+    </footer>
+  </div>
+<script>
+const WEATHERSTACK_KEY = "7dfebfa53d24c9da98bd3c4bf37181ae";
+
+document.getElementById('getLocationBtn').addEventListener('click', () => {
+  const errorMsg = document.getElementById('errorMsg');
+  errorMsg.textContent = '';
+
+  if (!navigator.geolocation) {
+    errorMsg.textContent = 'Geolocation is not supported by your browser.';
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(success, error);
+
+  function success(position) {
+    const latitude = position.coords.latitude;
+    const longitude = position.coords.longitude;
+    fetchWeatherAndAI(latitude, longitude);
+  }
+
+  function error() {
+    errorMsg.textContent = "Unable to retrieve your location.";
+  }
+
+  async function fetchWeatherAndAI(lat, lon) {
+    try {
+      const response = await fetch(`http://api.weatherstack.com/current?access_key=${WEATHERSTACK_KEY}&query=${lat},${lon}`);
+      const data = await response.json();
+      if (!data.current || !data.location) {
+        throw new Error("Couldn't get weather data. Try again.");
+      }
+
+      const { name, region, country } = data.location;
+      document.getElementById('locationDisplay').textContent = `Location: ${name}, ${region}, ${country}`;
+
+      const temp = data.current.temperature;
+      const desc = data.current.weather_descriptions[0] || "";
+
+      // Show temperature explicitly
+      document.getElementById('tempDisplay').textContent = `Temperature: ${temp}°C`;
+
+      document.querySelector('#food .result').textContent = suggestFood(temp);
+      document.querySelector('#dress .result').textContent = suggestDress(temp, desc);
+      document.querySelector('#music .result').textContent = suggestMusic(desc);
+      document.querySelector('#quote .result').textContent = suggestQuote();
+    } catch (err) {
+      errorMsg.textContent = err.message;
+    }
+  }
+
+  function suggestFood(temp) {
+    const foodsHot = [
+      "Lemongrass iced tea and watermelon salad",
+      "Coconut water and cucumber raita",
+      "Cold curd rice with pickle"
+    ];
+    const foodsWarm = [
+      "Fresh mango lassi and masala papad",
+      "Paneer tikka and chilled nimbu pani",
+      "Fruit chaat and iced filter coffee"
+    ];
+    const foodsCold = [
+      "Hot rasam and idli combo",
+      "Vegetable soup with toasted bread",
+      "Spicy sambar rice"
+    ];
+    const arr = temp > 30 ? foodsHot : temp > 20 ? foodsWarm : foodsCold;
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  function suggestDress(temp, desc) {
+    const dressesRain = [
+      "Umbrella, waterproof jacket, and rubber sandals",
+      "Raincoat with quick-dry pants",
+      "Windcheater and boots"
+    ];
+    const dressesHot = [
+      "Sleeveless kurti and linen pants",
+      "Light cotton saree",
+      "Short sleeves and shorts"
+    ];
+    const dressesWarm = [
+      "Jeans and cotton shirt",
+      "Half-sleeve t-shirt and chinos",
+      "Casual kurta and leggings"
+    ];
+    const dressesCold = [
+      "Hoodie and thick jeans",
+      "Woolen sweater with warm scarf",
+      "Thermal inners and jacket"
+    ];
+    if (desc.includes("Rain")) {
+      const arr = dressesRain;
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+    const arr = temp > 30 ? dressesHot : temp > 20 ? dressesWarm : dressesCold;
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  function suggestMusic(desc) {
+    const songsClear = [
+      "Munbe Vaa (Sillunu Oru Kaadhal)",
+      "Ennai Vittu Pogaathe (Darbar)",
+      "Vinnaithaandi Varuvaayaa Theme"
+    ];
+    const songsRain = [
+      "Pudhu Metro Rail (Oh Kadhal Kanmani)",
+      "Mazhai Kuruvi (Chekka Chivantha Vaanam)",
+      "Nenjukulle (Kadal)"
+    ];
+    const songsCloudy = [
+      "Oru Deivam Thantha Poove (Kanathil Muthamittal)",
+      "Thuli Thuli Mazhaiyaai (Paiyaa)",
+      "Poi Solla Kudathu (Run)"
+    ];
+    let arr = songsClear;
+    if (desc.includes("Rain")) arr = songsRain;
+    else if (desc.includes("Cloud")) arr = songsCloudy;
+    return "Listen to: “" + arr[Math.floor(Math.random() * arr.length)] + "”";
+  }
+
+  function suggestQuote() {
+    const quotes = [
+      "Seize this bright moment!",
+      "Let every drop inspire you.",
+      "Dance with the rhythm of the weather.",
+      "Nature’s moods are amazing. Embrace them!",
+      "Find joy whatever the sky brings.",
+      "Today is your canvas. Paint it vibrant."
+    ];
+    return quotes[Math.floor(Math.random() * quotes.length)];
+  }
+});
+</script>
+</body>
+</html>

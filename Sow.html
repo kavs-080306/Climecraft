@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Skill → Job Role Finder</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .chip { @apply inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-white/90 shadow; }
+    .badge { @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-white/70; }
+    .card { @apply rounded-2xl p-5 text-white shadow-lg transition-transform hover:-translate-y-0.5 hover:shadow-xl; }
+    .kicker { @apply uppercase tracking-wider text-xs font-semibold opacity-90; }
+    .pill { @apply inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold bg-black/10 text-black; }
+  </style>
+</head>
+<body class="bg-gradient-to-b from-indigo-50 to-white min-h-screen">
+  <div class="max-w-7xl mx-auto p-6">
+    <header class="text-center mb-8">
+      <h1 class="text-4xl md:text-5xl font-extrabold text-indigo-700">Find Jobs From Your Skills</h1>
+      <p class="mt-2 text-gray-600">Type your skills, then click <b>Search Jobs</b> to see matches.</p>
+    </header>
+
+    <!-- Search -->
+    <section class="bg-white rounded-2xl shadow-sm p-4 md:p-6 border">
+      <div class="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+        <div class="flex-1">
+          <label for="skillInput" class="block text-sm font-medium text-gray-700 mb-1">Enter skills (comma or space separated)</label>
+          <input id="skillInput" type="text" placeholder="e.g., python, sql, communication"
+                 class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+        </div>
+        <button id="searchBtn"
+                class="h-11 px-5 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700 transition">
+          Search Jobs
+        </button>
+      </div>
+
+      <!-- Quick skills -->
+      <div class="mt-4 flex flex-wrap gap-2">
+        <span class="pill cursor-pointer" onclick="addQuickSkill('Python')">Python</span>
+        <span class="pill cursor-pointer" onclick="addQuickSkill('SQL')">SQL</span>
+        <span class="pill cursor-pointer" onclick="addQuickSkill('Excel')">Excel</span>
+        <span class="pill cursor-pointer" onclick="addQuickSkill('Communication')">Communication</span>
+        <span class="pill cursor-pointer" onclick="addQuickSkill('Project Management')">Project Management</span>
+        <span class="pill cursor-pointer" onclick="addQuickSkill('Cloud')">Cloud</span>
+        <span class="pill cursor-pointer" onclick="addQuickSkill('Cybersecurity')">Cybersecurity</span>
+        <span class="pill cursor-pointer" onclick="addQuickSkill('Marketing')">Marketing</span>
+        <span class="pill cursor-pointer" onclick="addQuickSkill('Design')">Design</span>
+        <span class="pill cursor-pointer" onclick="addQuickSkill('Negotiation')">Negotiation</span>
+      </div>
+    </section>
+
+    <!-- Results -->
+    <section id="resultsSection" class="mt-8 hidden">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <div class="kicker text-indigo-700">Results</div>
+          <h2 class="text-2xl font-bold text-gray-800">Job roles matched to your skills</h2>
+        </div>
+        <div class="text-sm text-gray-500" id="resultMeta"></div>
+      </div>
+
+      <div id="results" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+      <div id="emptyState" class="hidden mt-6 text-center text-gray-600">
+        <div class="inline-block bg-yellow-50 border border-yellow-200 text-yellow-900 rounded-xl px-4 py-3">
+          No matches found. Try broader skills like <b>Communication</b>, <b>Excel</b>, or <b>Project Management</b>.
+        </div>
+      </div>
+    </section>
+
+    <!-- Compare -->
+    <section id="comparePanel" class="hidden mt-10 bg-white rounded-2xl shadow-md border p-6 overflow-x-auto">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <div class="kicker text-pink-600">Compare</div>
+          <h3 class="text-xl md:text-2xl font-bold text-gray-800">Side-by-side comparison (up to 3)</h3>
+        </div>
+        <button class="text-sm text-gray-500 hover:text-gray-700" onclick="clearCompare()">Clear all</button>
+      </div>
+      <table class="w-full border-collapse text-sm">
+        <thead>
+          <tr class="bg-indigo-50 text-indigo-700">
+            <th class="border p-3 text-left">Feature</th>
+            <th id="col1" class="border p-3"></th>
+            <th id="col2" class="border p-3"></th>
+            <th id="col3" class="border p-3"></th>
+          </tr>
+        </thead>
+        <tbody id="compareTable"></tbody>
+      </table>
+    </section>
+  </div>
+
+  <script>
+    // Expanded dataset (30+ roles across industries)
+    const JOBS = {
+      "Data Scientist": { description:"Analyzes data, builds predictive models, and communicates insights.", skills:["Python","SQL","Statistics","Machine Learning","Communication"], tools:["Pandas","TensorFlow","Tableau"], salary:"₹90k - ₹140k", certificates:["Google Data Engineer","IBM Data Science","AWS ML Specialty"] },
+      "Software Engineer": { description:"Designs and builds scalable software systems.", skills:["JavaScript","Git","Problem-Solving","APIs","Cloud"], tools:["VS Code","Node.js","Docker"], salary:"₹80k - ₹130k", certificates:["AWS Developer Associate","Azure Developer","Google Cloud Developer"] },
+      "Project Manager": { description:"Plans, executes, and delivers projects on time and budget.", skills:["Project Management","Leadership","Risk Management","Communication"], tools:["MS Project","Jira","Trello"], salary:"₹80k - ₹120k", certificates:["PMP","PRINCE2","Scrum Master"] },
+      "UX Designer": { description:"Creates intuitive user experiences with research and design.", skills:["User Research","Wireframing","Prototyping","Design","Communication"], tools:["Figma","Adobe XD","Miro"], salary:"₹70k - ₹110k", certificates:["Google UX Design","NN/g UX","HFI-CUA"] },
+      "Marketing Manager": { description:"Leads strategy across channels to grow brand and demand.", skills:["Marketing","SEO","Content Strategy","Analytics","Communication"], tools:["Google Analytics","HubSpot","SEMrush"], salary:"₹75k - ₹120k", certificates:["Google Analytics","HubSpot Inbound","Facebook Blueprint"] },
+      "Cybersecurity Analyst": { description:"Monitors, detects, and responds to security threats.", skills:["Cybersecurity","Network Security","SIEM","Scripting"], tools:["Splunk","Wireshark","Nmap"], salary:"₹85k - ₹130k", certificates:["CompTIA Security+","CEH","CISSP"] },
+      "Cloud Engineer": { description:"Builds and operates cloud infrastructure.", skills:["Cloud","DevOps","CI/CD","Linux"], tools:["AWS","Terraform","Kubernetes"], salary:"₹90k - ₹140k", certificates:["AWS Architect","Azure Admin","Google Cloud Architect"] },
+      "Business Analyst": { description:"Bridges business needs and technical solutions.", skills:["Requirements Gathering","SQL","Excel","Communication"], tools:["Excel","Power BI","Jira"], salary:"₹70k - ₹105k", certificates:["CBAP","PMI-PBA","Tableau Specialist"] },
+      "Financial Analyst": { description:"Builds models, forecasts performance, and informs investments.", skills:["Excel","Financial Modeling","Accounting","Communication"], tools:["Excel","PowerPoint","Bloomberg"], salary:"₹70k - ₹110k", certificates:["CFA","FMVA","CPA"] },
+      "Product Manager": { description:"Owns product strategy and roadmap.", skills:["Roadmapping","Prioritization","User Research","Analytics","Communication"], tools:["Jira","Figma","Mixpanel"], salary:"₹95k - ₹150k", certificates:["Product School PM","PMC","Scrum Product Owner"] },
+      "Data Analyst": { description:"Turns raw data into dashboards and insights.", skills:["SQL","Excel","Data Visualization","Statistics"], tools:["Power BI","Tableau","Excel"], salary:"₹60k - ₹95k", certificates:["Google Data Analytics","Tableau Specialist","Microsoft PL-300"] },
+      "HR Specialist": { description:"Supports hiring, onboarding, and employee success.", skills:["Recruiting","Communication","Policy","Excel","Negotiation"], tools:["Workday","BambooHR"], salary:"₹55k - ₹90k", certificates:["SHRM-CP","PHR","LinkedIn Talent Solutions"] },
+      "Mechanical Engineer": { description:"Designs and tests mechanical systems.", skills:["CAD","Thermodynamics","Problem-Solving","Mathematics"], tools:["SolidWorks","ANSYS","MATLAB"], salary:"₹75k - ₹115k", certificates:["FE/PE","SolidWorks CSWP","Six Sigma Green Belt"] },
+      "Civil Engineer": { description:"Plans, designs, and supervises infrastructure projects.", skills:["AutoCAD","Project Management","Surveying","Structural Analysis"], tools:["AutoCAD","Revit","STAAD.Pro"], salary:"₹70k - ₹110k", certificates:["FE/PE","PMP","OSHA 30"] },
+      "Healthcare Manager": { description:"Runs healthcare operations and quality standards.", skills:["Healthcare Admin","Scheduling","Budgeting","Communication"], tools:["EHR Systems","Excel"], salary:"₹80k - ₹120k", certificates:["FACHE","CPHQ","Lean Six Sigma"] },
+      "QA Engineer": { description:"Ensures product quality via testing and automation.", skills:["Test Automation","Scripting","APIs","CI/CD"], tools:["Selenium","Cypress","Postman"], salary:"₹70k - ₹110k", certificates:["ISTQB","Certified Selenium Tester","AWS Practitioner"] },
+      "Graphic Designer": { description:"Creates visual concepts for branding and marketing.", skills:["Design","Branding","Typography","Illustration"], tools:["Photoshop","Illustrator","Figma"], salary:"₹55k - ₹90k", certificates:["Adobe Certified Professional","Brand Management","Google UX (visual)"] },
+      "Sales Executive": { description:"Builds pipeline, manages accounts, and closes deals.", skills:["Negotiation","Communication","CRM","Prospecting"], tools:["Salesforce","HubSpot","Outreach"], salary:"₹60k - ₹120k OTE", certificates:["MEDDIC","Sandler Sales","HubSpot Sales"] },
+      "DevOps Engineer": { description:"Automates software delivery and reliability.", skills:["CI/CD","Linux","Scripting","Cloud","Monitoring"], tools:["Jenkins","Prometheus","Grafana"], salary:"₹95k - ₹150k", certificates:["AWS DevOps","CKA","Terraform Associate"] },
+      "AI Engineer": { description:"Designs and deploys AI models for real-world apps.", skills:["Python","Deep Learning","TensorFlow","NLP"], tools:["PyTorch","TensorFlow","Keras"], salary:"₹100k - ₹160k", certificates:["DeepLearning.AI","TensorFlow Developer","AWS ML Specialty"] },
+      "Doctor": { description:"Provides medical care and diagnosis.", skills:["Medicine","Communication","Critical Thinking"], tools:["EHR Systems","Medical Instruments"], salary:"₹120k - ₹200k", certificates:["MBBS","MD","Specialization Board Cert."] },
+      "Teacher": { description:"Educates students in schools or colleges.", skills:["Communication","Subject Knowledge","Classroom Management"], tools:["Google Classroom","MS Teams"], salary:"₹40k - ₹80k", certificates:["B.Ed","Teaching License","TESOL"] },
+      "Lawyer": { description:"Advises and represents clients in legal matters.", skills:["Legal Research","Negotiation","Communication"], tools:["LexisNexis","Westlaw"], salary:"₹90k - ₹150k", certificates:["LLB","Bar Exam","LLM"] },
+      "Architect": { description:"Designs buildings and oversees construction projects.", skills:["AutoCAD","Design","Project Management"], tools:["Revit","AutoCAD","SketchUp"], salary:"₹75k - ₹120k", certificates:["NCARB","LEED AP","RIBA"] },
+      "Nurse": { description:"Provides patient care and medical support.", skills:["Healthcare","Compassion","Critical Thinking"], tools:["EHR Systems","Medical Equipment"], salary:"₹50k - ₹90k", certificates:["RN License","BSc Nursing","CPR Certification"] }
+    };
+
+    const GRADIENTS = ["from-indigo-500 to-purple-500","from-sky-500 to-indigo-500","from-pink-500 to-rose-500","from-emerald-500 to-teal-500","from-amber-500 to-orange-500","from-fuchsia-500 to-pink-500"];
+
+    let compareList = [];
+
+    function norm(s){ return s.toLowerCase(); }
+    function parseSkills(input){ return input.split(/[,|\s]+/).map(s => s.trim()).filter(Boolean); }
+    function addQuickSkill(s){ const el=document.getElementById("skillInput"); el.value=el.value?el.value+", "+s:s; }
+
+    function scoreRole(userSkills, roleSkills){
+      let count=0; userSkills.forEach(s=>{ if(roleSkills.map(norm).includes(norm(s))) count++; }); return count;
+    }
+
+    function searchJobs(){
+      const query=document.getElementById("skillInput").value;
+      const userSkills=parseSkills(query);
+      const resultsWrap=document.getElementById("results");
+      const meta=document.getElementById("resultMeta");
+      const empty=document.getElementById("emptyState");
+      const section=document.getElementById("resultsSection");
+      resultsWrap.innerHTML=""; section.classList.remove("hidden");
+
+      const ranked=Object.entries(JOBS).map(([role,data])=>({role,data,score:scoreRole(userSkills,data.skills)})).sort((a,b)=>b.score-a.score);
+
+      let shown=0, idx=0;
+      ranked.forEach(({role,data,score})=>{
+        if(userSkills.length>0 && score===0) return;
+        const g=GRADIENTS[idx%GRADIENTS.length]; idx++;
+        const skills=data.skills.map(sk=>userSkills.map(norm).includes(norm(sk))?`<span class="chip bg-emerald-100 text-emerald-800">${sk}</span>`:`<span class="chip bg-white/80 text-slate-700">${sk}</span>`).join(" ");
+        const certs=data.certificates.map(c=>`<span class="badge text-indigo-900">${c}</span>`).join(" ");
+        const card=document.createElement("div");
+        card.className=`card bg-gradient-to-br ${g}`;
+        card.innerHTML=`
+          <h3 class="text-xl font-bold mb-1">${role}</h3>
+          <p class="text-white/90 mb-3">${data.description}</p>
+          <div class="mb-2"><span class="kicker">Skills</span><div class="flex flex-wrap gap-2">${skills}</div></div>
+          <div class="mb-2"><span class="kicker">Certificates</span><div class="flex flex-wrap gap-2">${certs}</div></div>
+          <div class="flex justify-between items-center mt-3">
+            <span class="chip bg-black/30 text-white">${data.salary}</span>
+            <button class="px-3 py-1 rounded-lg bg-white/90 text-slate-800 font-semibold" onclick="addToCompare('${role}')">Compare</button>
+          </div>`;
+        resultsWrap.appendChild(card); shown++;
+      });
+      meta.textContent=shown?`${shown} role(s) shown`:""; empty.classList.toggle("hidden", shown!==0);
+    }
+
+    function addToCompare(role){ if(compareList.includes(role))return; if(compareList.length>=3){alert("Max 3 roles!");return;} compareList.push(role); renderCompare(); }
+    function removeFromCompare(role){ compareList=compareList.filter(r=>r!==role); renderCompare(); }
+    function clearCompare(){ compareList=[]; renderCompare(); }
+
+    function renderCompare(){
+      const panel=document.getElementById("comparePanel");
+      const table=document.getElementById("compareTable");
+      const col1=document.getElementById("col1"); const col2=document.getElementById("col2"); const col3=document.getElementById("col3");
+      table.innerHTML=""; col1.innerHTML=""; col2.innerHTML=""; col3.innerHTML="";
+
+      if(compareList.length===0){ panel.classList.add("hidden"); return; }
+      panel.classList.remove("hidden");
+
+      const headers=[col1,col2,col3];
+      compareList.forEach((role,i)=>{ headers[i].innerHTML=`${role}<br><button class='text-xs text-red-600 underline' onclick="removeFromCompare('${role}')">Remove</button>`; });
+
+      const features=["description","salary","skills","certificates"];
+      features.forEach(feat=>{
+        const row=document.createElement("tr");
+        row.className="odd:bg-white even:bg-gray-50";
+        const label=document.createElement("td");
+        label.className="border p-3 font-semibold text-gray-700"; label.textContent=feat.charAt(0).toUpperCase()+feat.slice(1);
+        row.appendChild(label);
+        compareList.forEach(role=>{
+          const td=document.createElement("td"); td.className="border p-3 align-top";
+          const data=JOBS[role];
+          if(feat==="skills") td.innerHTML=data.skills.map(s=>`<span class="chip">${s}</span>`).join(" ");
+          else if(feat==="certificates") td.innerHTML=data.certificates.map(c=>`<span class="badge">${c}</span>`).join(" ");
+          else td.textContent=data[feat];
+          row.appendChild(td);
+        });
+        table.appendChild(row);
+      });
+    }
+
+    document.getElementById("searchBtn").addEventListener("click", searchJobs);
+    document.getElementById("skillInput").addEventListener("keypress", e=>{ if(e.key==="Enter") searchJobs(); });
+  </script>
+</body>
+</html>
